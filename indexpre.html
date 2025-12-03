@@ -1,0 +1,3382 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BANCO DE PRÉSTAMOS</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏦</text></svg>">
+    
+    <!-- Configuration Firebase -->
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, limit, doc, setDoc, getDoc, updateDoc, deleteDoc, serverTimestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+        import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging.js";
+
+        // Configuration Firebase
+        // À obtenir depuis la console Firebase : Project Settings > General > Your apps
+        const CONST_FIREBASE_CONFIG = {
+            apiKey: "AIzaSyD6SwKXKgGrUeCTfeMFn7pToWbZuLQNiQk",
+            authDomain: "priccon.firebaseapp.com",
+            projectId: "priccon",
+            storageBucket: "priccon.firebasestorage.app",
+            messagingSenderId: "590409094566",
+            appId: "1:590409094566:web:e6f548231d95cfd0062b67"
+        };
+
+        // Configuration Cloudinary
+        // À obtenir depuis le dashboard Cloudinary
+        const CONST_CLOUDINARY_CLOUD_NAME = "djbp8wvsw";
+        const CONST_CLOUDINARY_PRESET = "privcon_upload"; // Upload preset non signé
+
+        // Initialiser Firebase
+        const app = initializeApp(CONST_FIREBASE_CONFIG);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
+        const messaging = getMessaging(app);
+        const googleProvider = new GoogleAuthProvider();
+
+        // Exposer les variables globalement pour l'application
+        window.firebaseApp = app;
+        window.firebaseAuth = auth;
+        window.firebaseDb = db;
+        window.firebaseStorage = storage;
+        window.firebaseMessaging = messaging;
+        window.googleProvider = googleProvider;
+        window.cloudinaryConfig = {
+            cloudName: CONST_CLOUDINARY_CLOUD_NAME,
+            uploadPreset: CONST_CLOUDINARY_PRESET
+        };
+    </script>
+    
+    <style>
+        /* CSS Global avec Glassmorphism */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        :root {
+            --primary: #4361ee;
+            --primary-dark: #3a56d4;
+            --secondary: #7209b7;
+            --success: #4cc9f0;
+            --danger: #f72585;
+            --warning: #f8961e;
+            --light: #f8f9fa;
+            --dark: #212529;
+            --gray: #6c757d;
+            --light-gray: #e9ecef;
+            --glass-bg: rgba(255, 255, 255, 0.15);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            color: var(--dark);
+        }
+
+        .glass-container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 24px;
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            width: 100%;
+            max-width: 500px;
+            min-height: 700px;
+            position: relative;
+            transition: var(--transition);
+        }
+
+        /* Responsive */
+        @media (min-width: 768px) {
+            .glass-container {
+                max-width: 800px;
+                min-height: 750px;
+            }
+        }
+
+        @media (min-width: 1200px) {
+            .glass-container {
+                max-width: 1200px;
+                min-height: 800px;
+            }
+        }
+
+        .page {
+            display: none;
+            width: 100%;
+            height: 100%;
+            padding: 24px;
+            overflow-y: auto;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--glass-border);
+            margin-bottom: 24px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: white;
+        }
+
+        .logo-icon {
+            font-size: 28px;
+            background: rgba(255, 255, 255, 0.2);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .logo-text h1 {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .logo-text p {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .user-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 18px;
+            cursor: pointer;
+            border: 2px solid white;
+        }
+
+        .user-avatar img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 12px;
+            border: none;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .btn-outline:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            opacity: 0.9;
+        }
+
+        .btn-block {
+            width: 100%;
+        }
+
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            color: white;
+            font-weight: 500;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 16px;
+            transition: var(--transition);
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .form-control::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .select-control {
+            width: 100%;
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 16px;
+            transition: var(--transition);
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 16px center;
+            background-size: 20px;
+        }
+
+        .select-control option {
+            background: #333;
+            color: white;
+        }
+
+        .alert {
+            padding: 14px 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .alert-success {
+            background: rgba(76, 201, 240, 0.2);
+            border: 1px solid rgba(76, 201, 240, 0.3);
+            color: #4cc9f0;
+        }
+
+        .alert-danger {
+            background: rgba(247, 37, 133, 0.2);
+            border: 1px solid rgba(247, 37, 133, 0.3);
+            color: #f72585;
+        }
+
+        .alert-info {
+            background: rgba(67, 97, 238, 0.2);
+            border: 1px solid rgba(67, 97, 238, 0.3);
+            color: #4361ee;
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 24px 0;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .divider::before, .divider::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .divider span {
+            padding: 0 16px;
+            font-size: 14px;
+        }
+
+        /* Page de sélection de langue */
+        .languages-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 12px;
+            margin-top: 30px;
+        }
+
+        .language-item {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            color: white;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .language-item:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-3px);
+        }
+
+        .language-flag {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .language-name {
+            font-weight: 500;
+            font-size: 15px;
+        }
+
+        /* Page d'authentification */
+        .auth-container {
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .auth-title {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .auth-tabs {
+            display: flex;
+            margin-bottom: 30px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 4px;
+        }
+
+        .auth-tab {
+            flex: 1;
+            text-align: center;
+            padding: 12px;
+            color: white;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: var(--transition);
+        }
+
+        .auth-tab.active {
+            background: var(--primary);
+        }
+
+        /* Page principale utilisateur */
+        .posts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .post-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: var(--transition);
+        }
+
+        .post-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .post-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+
+        .post-content {
+            padding: 20px;
+        }
+
+        .post-action {
+            margin-top: 15px;
+        }
+
+        /* Page de chat */
+        .chat-container {
+            display: flex;
+            height: calc(100% - 80px);
+        }
+
+        .chat-sidebar {
+            width: 300px;
+            border-right: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        @media (max-width: 768px) {
+            .chat-sidebar {
+                display: none;
+            }
+            
+            .chat-sidebar.active {
+                display: flex;
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                z-index: 100;
+                background: rgba(0, 0, 0, 0.9);
+            }
+            
+            .chat-main {
+                width: 100%;
+            }
+        }
+
+        .chat-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .chat-user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .chat-user-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+
+        .chat-user-avatar img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .chat-user-details h3 {
+            color: white;
+            font-size: 18px;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chat-user-details p {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .status-online {
+            background: #4ade80;
+        }
+
+        .status-offline {
+            background: #ef4444;
+        }
+
+        .badge-admin {
+            background: var(--primary);
+            color: white;
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .message {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message-sent {
+            align-self: flex-end;
+            background: var(--primary);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message-received {
+            align-self: flex-start;
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message-text {
+            word-break: break-word;
+            line-height: 1.4;
+        }
+
+        .message-time {
+            font-size: 11px;
+            opacity: 0.8;
+            align-self: flex-end;
+            margin-top: 4px;
+        }
+
+        .message-edited {
+            font-size: 11px;
+            font-style: italic;
+            opacity: 0.8;
+            margin-top: 2px;
+        }
+
+        .message-status {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        .message-deleted {
+            font-style: italic;
+            opacity: 0.7;
+        }
+
+        .chat-input-container {
+            padding: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            gap: 12px;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 14px 16px;
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 16px;
+            transition: var(--transition);
+        }
+
+        .chat-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .chat-sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chat-sidebar-title {
+            color: white;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .chat-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .chat-list-item {
+            padding: 16px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .chat-list-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .chat-list-item.active {
+            background: rgba(67, 97, 238, 0.2);
+        }
+
+        .chat-list-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 18px;
+        }
+
+        .chat-list-avatar img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .chat-list-details {
+            flex: 1;
+        }
+
+        .chat-list-name {
+            color: white;
+            font-weight: 500;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chat-list-preview {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .chat-list-time {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .chat-list-unread {
+            background: var(--primary);
+            color: white;
+            font-size: 12px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Menu contextuel des messages */
+        .context-menu {
+            position: fixed;
+            background: rgba(30, 30, 30, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            min-width: 180px;
+            overflow: hidden;
+        }
+
+        .context-menu-item {
+            padding: 14px 20px;
+            color: white;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .context-menu-item:last-child {
+            border-bottom: none;
+        }
+
+        .context-menu-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .context-menu-item i {
+            width: 20px;
+            text-align: center;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .modal {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--shadow);
+            max-width: 500px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: modalAppear 0.3s ease-out;
+        }
+
+        @keyframes modalAppear {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            padding: 24px 24px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            color: white;
+            font-size: 22px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .modal-footer {
+            padding: 16px 24px 24px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        /* Page admin */
+        .admin-controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .users-list {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+        }
+
+        .user-item {
+            padding: 16px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: var(--transition);
+        }
+
+        .user-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .user-item:last-child {
+            border-bottom: none;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* Upload de photos */
+        .upload-area {
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+            border-radius: 16px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            margin-bottom: 20px;
+        }
+
+        .upload-area:hover {
+            border-color: var(--primary);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            color: rgba(255, 255, 255, 0.5);
+            margin-bottom: 16px;
+        }
+
+        .upload-text {
+            color: white;
+            font-size: 18px;
+            margin-bottom: 8px;
+        }
+
+        .upload-subtext {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+        }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin-top: 30px;
+        }
+
+        .pagination-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .pagination-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .pagination-btn.active {
+            background: var(--primary);
+        }
+
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Profile view */
+        .profile-view {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 24px;
+            margin-top: 20px;
+        }
+
+        .profile-header {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .profile-avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 36px;
+            font-weight: 600;
+            border: 4px solid white;
+        }
+
+        .profile-avatar img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .profile-name {
+            color: white;
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .profile-role {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .profile-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .profile-detail-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .profile-detail-label {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .profile-detail-value {
+            color: white;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        /* Mobile menu toggle */
+        .mobile-menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        @media (max-width: 768px) {
+            .mobile-menu-toggle {
+                display: block;
+            }
+            
+            .page {
+                padding: 16px;
+            }
+            
+            .header {
+                padding-bottom: 16px;
+                margin-bottom: 16px;
+            }
+            
+            .logo-text h1 {
+                font-size: 18px;
+            }
+        }
+
+        /* Utilitaires */
+        .text-center {
+            text-align: center;
+        }
+
+        .mt-3 {
+            margin-top: 16px;
+        }
+
+        .mb-3 {
+            margin-bottom: 16px;
+        }
+
+        .d-none {
+            display: none !important;
+        }
+
+        .d-flex {
+            display: flex;
+        }
+
+        .flex-column {
+            flex-direction: column;
+        }
+
+        .align-items-center {
+            align-items: center;
+        }
+
+        .justify-content-center {
+            justify-content: center;
+        }
+
+        .justify-content-between {
+            justify-content: space-between;
+        }
+
+        .w-100 {
+            width: 100%;
+        }
+
+        .h-100 {
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="glass-container">
+        <!-- Page de sélection de langue -->
+        <div id="languagePage" class="page active">
+            <div class="header">
+                <div class="logo">
+                    <div class="logo-icon">🏦</div>
+                    <div class="logo-text">
+                        <h1>BANCO DE PRÉSTAMOS</h1>
+                        <p>Messagerie Professionnelle</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center" style="color: white; margin-bottom: 30px;">
+                <h2 style="font-size: 28px; margin-bottom: 12px;">Sélectionnez votre langue</h2>
+                <p style="opacity: 0.9;">Choisissez votre langue préférée pour utiliser l'application</p>
+            </div>
+            
+            <div class="languages-grid" id="languagesGrid">
+                <!-- Les langues seront générées dynamiquement -->
+            </div>
+        </div>
+        
+        <!-- Page d'authentification -->
+        <div id="authPage" class="page">
+            <div class="header">
+                <div class="logo">
+                    <div class="logo-icon">🏦</div>
+                    <div class="logo-text">
+                        <h1>BANCO DE PRÉSTAMOS</h1>
+                        <p>Messagerie Professionnelle</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="auth-container">
+                <h2 class="auth-title" id="authTitle">Connexion</h2>
+                
+                <div class="auth-tabs">
+                    <div class="auth-tab active" id="loginTab" data-i18n="login">Connexion</div>
+                    <div class="auth-tab" id="registerTab" data-i18n="register">Inscription</div>
+                </div>
+                
+                <div id="loginForm">
+                    <form id="loginFormElement">
+                        <div class="form-group">
+                            <label class="form-label" for="loginEmail" data-i18n="email">Email</label>
+                            <input type="email" class="form-control" id="loginEmail" placeholder="votre@email.com" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label" for="loginPassword" data-i18n="password">Mot de passe</label>
+                            <input type="password" class="form-control" id="loginPassword" placeholder="••••••••" required>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary btn-block" data-i18n="login">Connexion</button>
+                    </form>
+                    
+                    <div class="divider">
+                        <span data-i18n="or">Ou</span>
+                    </div>
+                    
+                    <button class="btn btn-secondary btn-block" id="googleLoginBtn">
+                        <i class="fab fa-google"></i>
+                        <span data-i18n="loginWithGoogle">Connexion avec Google</span>
+                    </button>
+                </div>
+                
+                <div id="registerForm" class="d-none">
+                    <form id="registerFormElement">
+                        <div class="form-group">
+                            <label class="form-label" for="registerFirstName" data-i18n="firstName">Prénom</label>
+                            <input type="text" class="form-control" id="registerFirstName" placeholder="Jean" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label" for="registerLastName" data-i18n="lastName">Nom</label>
+                            <input type="text" class="form-control" id="registerLastName" placeholder="Dupont" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label" for="registerCountry" data-i18n="country">Pays</label>
+                            <select class="select-control" id="registerCountry" required>
+                                <!-- Les pays seront ajoutés dynamiquement -->
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label" for="registerEmail" data-i18n="email">Email</label>
+                            <input type="email" class="form-control" id="registerEmail" placeholder="votre@email.com" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label" for="registerPassword" data-i18n="password">Mot de passe</label>
+                            <input type="password" class="form-control" id="registerPassword" placeholder="••••••••" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label" for="registerConfirmPassword" data-i18n="confirmPassword">Confirmer le mot de passe</label>
+                            <input type="password" class="form-control" id="registerConfirmPassword" placeholder="••••••••" required>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary btn-block" data-i18n="register">S'inscrire</button>
+                    </form>
+                    
+                    <div class="divider">
+                        <span data-i18n="or">Ou</span>
+                    </div>
+                    
+                    <button class="btn btn-secondary btn-block" id="googleRegisterBtn">
+                        <i class="fab fa-google"></i>
+                        <span data-i18n="registerWithGoogle">Inscription avec Google</span>
+                    </button>
+                </div>
+                
+                <div class="text-center mt-3" style="color: rgba(255, 255, 255, 0.7);">
+                    <p data-i18n="secureConnection">Connexion sécurisée avec Firebase</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Page principale utilisateur -->
+        <div id="userHomePage" class="page">
+            <div class="header">
+                <div class="logo">
+                    <div class="logo-icon">🏦</div>
+                    <div class="logo-text">
+                        <h1>BANCO DE PRÉSTAMOS</h1>
+                        <p data-i18n="welcomeUser">Bienvenue</p>
+                    </div>
+                </div>
+                
+                <div class="d-flex align-items-center gap-3">
+                    <button class="btn btn-outline btn-small" id="logoutBtn" data-i18n="logout">Déconnexion</button>
+                    <div class="user-avatar" id="userAvatar">
+                        <span id="avatarInitials">U</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center" style="color: white; margin-bottom: 24px;">
+                <h2 style="font-size: 24px; margin-bottom: 8px;" data-i18n="offersTitle">Offres de prêts disponibles</h2>
+                <p style="opacity: 0.9;" data-i18n="offersSubtitle">Sélectionnez une offre pour discuter avec notre conseiller</p>
+            </div>
+            
+            <div id="postsContainer" class="posts-grid">
+                <!-- Les annonces seront chargées ici -->
+            </div>
+            
+            <div class="pagination" id="postsPagination">
+                <!-- La pagination sera générée ici -->
+            </div>
+        </div>
+        
+        <!-- Page de chat -->
+        <div id="chatPage" class="page">
+            <div class="header">
+                <div class="d-flex align-items-center justify-content-between w-100">
+                    <button class="btn btn-outline btn-small" id="backToHomeBtn">
+                        <i class="fas fa-arrow-left"></i>
+                        <span data-i18n="back">Retour</span>
+                    </button>
+                    
+                    <div class="logo">
+                        <div class="logo-icon">🏦</div>
+                        <div class="logo-text">
+                            <h1>BANCO DE PRÉSTAMOS</h1>
+                            <p data-i18n="privateChat">Chat Privé</p>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex align-items-center gap-3">
+                        <button class="mobile-menu-toggle" id="chatMenuToggle">
+                            <i class="fas fa-bars"></i>
+                        </button>
+                        <button class="btn btn-outline btn-small d-none" id="chatLogoutBtn" data-i18n="logout">Déconnexion</button>
+                        <div class="user-avatar" id="chatUserAvatar">
+                            <span id="chatAvatarInitials">U</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="chat-container">
+                <!-- Sidebar pour la liste des conversations -->
+                <div class="chat-sidebar" id="chatSidebar">
+                    <div class="chat-sidebar-header">
+                        <h3 class="chat-sidebar-title" data-i18n="conversations">Conversations</h3>
+                        <button class="btn btn-outline btn-small" id="closeSidebarBtn">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="chat-list" id="chatList">
+                        <!-- Les conversations seront chargées ici -->
+                    </div>
+                </div>
+                
+                <!-- Zone principale de chat -->
+                <div class="chat-main">
+                    <div class="chat-header">
+                        <div class="chat-user-info">
+                            <div class="chat-user-avatar" id="currentChatAvatar">
+                                <span id="currentChatInitials">A</span>
+                            </div>
+                            <div class="chat-user-details">
+                                <h3 id="currentChatUserName">
+                                    Admin
+                                    <span class="badge-admin">
+                                        <i class="fas fa-check-circle"></i>
+                                        <span data-i18n="admin">Admin</span>
+                                    </span>
+                                </h3>
+                                <p id="currentChatUserStatus">
+                                    <span class="status-indicator status-online"></span>
+                                    <span data-i18n="online">En ligne</span>
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <button class="btn btn-outline btn-small" id="viewProfileBtn" data-i18n="viewProfile">Voir le profil</button>
+                    </div>
+                    
+                    <div class="chat-messages" id="chatMessages">
+                        <!-- Les messages seront chargés ici -->
+                        <div class="text-center" style="color: rgba(255, 255, 255, 0.7); margin-top: 40px;">
+                            <p data-i18n="noMessages">Aucun message pour le moment. Commencez la conversation !</p>
+                        </div>
+                    </div>
+                    
+                    <div class="chat-input-container">
+                        <input type="text" class="chat-input" id="messageInput" placeholder="Tapez votre message..." data-i18n="messagePlaceholder">
+                        <button class="btn btn-primary" id="sendMessageBtn">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Page administrateur -->
+        <div id="adminPage" class="page">
+            <div class="header">
+                <div class="logo">
+                    <div class="logo-icon">🏦</div>
+                    <div class="logo-text">
+                        <h1>BANCO DE PRÉSTAMOS</h1>
+                        <p data-i18n="adminPanel">Panneau d'administration</p>
+                    </div>
+                </div>
+                
+                <div class="d-flex align-items-center gap-3">
+                    <button class="btn btn-outline btn-small" id="adminLogoutBtn" data-i18n="logout">Déconnexion</button>
+                    <div class="user-avatar" id="adminAvatar">
+                        <span id="adminAvatarInitials">A</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="admin-controls">
+                <button class="btn btn-primary" id="createPostBtn" data-i18n="createPost">Créer une annonce</button>
+                <button class="btn btn-secondary" id="viewAllUsersBtn" data-i18n="viewAllUsers">Voir tous les utilisateurs</button>
+                <button class="btn btn-outline" id="adminChatBtn" data-i18n="goToChat">Aller au chat</button>
+            </div>
+            
+            <div id="adminContent">
+                <!-- Contenu admin sera chargé ici -->
+                <div class="text-center" style="color: white; padding: 40px;">
+                    <h3 style="margin-bottom: 16px;" data-i18n="adminWelcome">Bienvenue dans le panneau d'administration</h3>
+                    <p style="opacity: 0.9;" data-i18n="adminInstructions">Utilisez les boutons ci-dessus pour gérer les annonces, les utilisateurs et les conversations.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal pour afficher le profil -->
+    <div class="modal-overlay d-none" id="profileModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title" data-i18n="userProfile">Profil utilisateur</h3>
+                <button class="modal-close" id="closeProfileModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="profile-view" id="profileViewContent">
+                    <!-- Le contenu du profil sera chargé ici -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal pour créer une annonce -->
+    <div class="modal-overlay d-none" id="createPostModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title" data-i18n="createPost">Créer une annonce</h3>
+                <button class="modal-close" id="closeCreatePostModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="upload-area" id="postUploadArea">
+                    <div class="upload-icon">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                    </div>
+                    <div class="upload-text" data-i18n="uploadPhoto">Télécharger une photo</div>
+                    <div class="upload-subtext" data-i18n="uploadInstructions">Cliquez pour sélectionner ou glissez-déposez une image</div>
+                    <input type="file" id="postImageInput" accept="image/*" class="d-none">
+                </div>
+                
+                <div id="postPreview" class="d-none">
+                    <img id="postPreviewImage" src="" alt="Aperçu" class="post-image" style="border-radius: 12px; margin-bottom: 16px;">
+                    <div class="d-flex justify-content-center">
+                        <button class="btn btn-danger btn-small" id="removePostImageBtn" data-i18n="removeImage">Supprimer l'image</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="cancelPostBtn" data-i18n="cancel">Annuler</button>
+                <button class="btn btn-primary" id="publishPostBtn" data-i18n="publish">Publier</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal pour la liste des utilisateurs -->
+    <div class="modal-overlay d-none" id="usersModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title" data-i18n="allUsers">Tous les utilisateurs</h3>
+                <button class="modal-close" id="closeUsersModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="users-list" id="usersListContent">
+                    <!-- La liste des utilisateurs sera chargée ici -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script principal de l'application -->
+    <script>
+        // Déclaration des variables globales
+        let currentUser = null;
+        let currentLanguage = 'fr';
+        let translations = {};
+        let currentPage = 'language';
+        let adminUser = null;
+        let currentChatWith = null;
+        let messageListeners = {};
+        let editingMessageId = null;
+        let replyingToMessageId = null;
+        
+        // Données des langues supportées
+        const languages = [
+            { code: 'en', name: 'English', flag: '🇺🇸' },
+            { code: 'es', name: 'Español', flag: '🇪🇸' },
+            { code: 'fr', name: 'Français', flag: '🇫🇷' },
+            { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
+            { code: 'it', name: 'Italiano', flag: '🇮🇹' },
+            { code: 'pt', name: 'Português', flag: '🇵🇹' },
+            { code: 'nl', name: 'Nederlands', flag: '🇳🇱' },
+            { code: 'pl', name: 'Polski', flag: '🇵🇱' },
+            { code: 'ru', name: 'Русский', flag: '🇷🇺' },
+            { code: 'ar', name: 'العربية', flag: '🇸🇦' },
+            { code: 'zh', name: '中文', flag: '🇨🇳' },
+            { code: 'ja', name: '日本語', flag: '🇯🇵' },
+            { code: 'ko', name: '한국어', flag: '🇰🇷' },
+            { code: 'tr', name: 'Türkçe', flag: '🇹🇷' },
+            { code: 'sv', name: 'Svenska', flag: '🇸🇪' },
+            { code: 'fi', name: 'Suomi', flag: '🇫🇮' },
+            { code: 'da', name: 'Dansk', flag: '🇩🇰' },
+            { code: 'no', name: 'Norsk', flag: '🇳🇴' },
+            { code: 'cs', name: 'Čeština', flag: '🇨🇿' },
+            { code: 'hu', name: 'Magyar', flag: '🇭🇺' },
+            { code: 'ro', name: 'Română', flag: '🇷🇴' },
+            { code: 'el', name: 'Ελληνικά', flag: '🇬🇷' },
+            { code: 'bg', name: 'Български', flag: '🇧🇬' },
+            { code: 'uk', name: 'Українська', flag: '🇺🇦' },
+            { code: 'sk', name: 'Slovenčina', flag: '🇸🇰' },
+            { code: 'hr', name: 'Hrvatski', flag: '🇭🇷' },
+            { code: 'sr', name: 'Српски', flag: '🇷🇸' },
+            { code: 'sl', name: 'Slovenščina', flag: '🇸🇮' },
+            { code: 'lv', name: 'Latviešu', flag: '🇱🇻' },
+            { code: 'lt', name: 'Lietuvių', flag: '🇱🇹' },
+            { code: 'et', name: 'Eesti', flag: '🇪🇪' }
+        ];
+        
+        // Liste des pays (Europe et Amériques uniquement)
+        const countries = [
+            "Allemagne", "Autriche", "Belgique", "Bulgarie", "Chypre", "Croatie", "Danemark",
+            "Espagne", "Estonie", "Finlande", "France", "Grèce", "Hongrie", "Irlande",
+            "Italie", "Lettonie", "Lituanie", "Luxembourg", "Malte", "Pays-Bas", "Pologne",
+            "Portugal", "République Tchèque", "Roumanie", "Slovaquie", "Slovénie", "Suède",
+            "Royaume-Uni", "Suisse", "Norvège", "Islande", "Albanie", "Bosnie-Herzégovine",
+            "Serbie", "Monténégro", "Macédoine du Nord", "États-Unis", "Canada", "Mexique",
+            "Brésil", "Argentine", "Chili", "Colombie", "Pérou", "Venezuela", "Uruguay",
+            "Paraguay", "Équateur", "Bolivie", "Costa Rica", "Cuba", "République Dominicaine",
+            "Guatemala", "Haïti", "Honduras", "Nicaragua", "Panama", "Salvador"
+        ];
+        
+        // Traductions
+        const translationData = {
+            en: {
+                // Général
+                "login": "Login",
+                "register": "Register",
+                "logout": "Logout",
+                "cancel": "Cancel",
+                "save": "Save",
+                "delete": "Delete",
+                "edit": "Edit",
+                "send": "Send",
+                "back": "Back",
+                "close": "Close",
+                "confirm": "Confirm",
+                "loading": "Loading...",
+                "error": "Error",
+                "success": "Success",
+                "warning": "Warning",
+                "info": "Information",
+                "or": "Or",
+                "online": "Online",
+                "offline": "Offline",
+                "typing": "Typing...",
+                
+                // Authentification
+                "email": "Email",
+                "password": "Password",
+                "confirmPassword": "Confirm Password",
+                "firstName": "First Name",
+                "lastName": "Last Name",
+                "country": "Country",
+                "loginWithGoogle": "Login with Google",
+                "registerWithGoogle": "Register with Google",
+                "secureConnection": "Secure connection with Firebase",
+                "invalidEmail": "Invalid email address",
+                "weakPassword": "Password is too weak",
+                "passwordMismatch": "Passwords do not match",
+                "emailInUse": "Email already in use",
+                "wrongPassword": "Wrong password",
+                "userNotFound": "User not found",
+                "networkError": "Network error. Please try again.",
+                
+                // Pages
+                "welcomeUser": "Welcome",
+                "offersTitle": "Available loan offers",
+                "offersSubtitle": "Select an offer to discuss with our advisor",
+                "privateChat": "Private Chat",
+                "conversations": "Conversations",
+                "adminPanel": "Admin Panel",
+                "adminWelcome": "Welcome to the admin panel",
+                "adminInstructions": "Use the buttons above to manage ads, users and conversations.",
+                
+                // Chat
+                "messagePlaceholder": "Type your message...",
+                "noMessages": "No messages yet. Start the conversation!",
+                "viewProfile": "View Profile",
+                "userProfile": "User Profile",
+                "admin": "Admin",
+                "verified": "Verified",
+                "messageSent": "Sent",
+                "messageDelivered": "Delivered",
+                "messageRead": "Read",
+                "messageEdited": "Edited",
+                "messageDeleted": "This message has been deleted",
+                "copyMessage": "Copy Message",
+                "reply": "Reply",
+                "editMessage": "Edit Message",
+                "deleteMessage": "Delete Message",
+                "typeMessage": "Type a message...",
+                
+                // Annonces
+                "createPost": "Create Post",
+                "uploadPhoto": "Upload Photo",
+                "uploadInstructions": "Click to select or drag and drop an image",
+                "removeImage": "Remove Image",
+                "publish": "Publish",
+                "loanOfferButton": "Would you like to receive a loan from this bank, click here to discuss with them",
+                
+                // Utilisateurs
+                "viewAllUsers": "View All Users",
+                "allUsers": "All Users",
+                "startChat": "Start Chat",
+                "goToChat": "Go to Chat",
+                
+                // Profil
+                "profileLanguage": "Language",
+                "registrationDate": "Registration Date",
+                "lastSeen": "Last Seen",
+                "role": "Role",
+                "user": "User",
+                
+                // Statuts de lecture
+                "sent": "Sent",
+                "delivered": "Delivered",
+                "read": "Read"
+            },
+            fr: {
+                // Général
+                "login": "Connexion",
+                "register": "Inscription",
+                "logout": "Déconnexion",
+                "cancel": "Annuler",
+                "save": "Enregistrer",
+                "delete": "Supprimer",
+                "edit": "Modifier",
+                "send": "Envoyer",
+                "back": "Retour",
+                "close": "Fermer",
+                "confirm": "Confirmer",
+                "loading": "Chargement...",
+                "error": "Erreur",
+                "success": "Succès",
+                "warning": "Avertissement",
+                "info": "Information",
+                "or": "Ou",
+                "online": "En ligne",
+                "offline": "Hors ligne",
+                "typing": "En train d'écrire...",
+                
+                // Authentification
+                "email": "Email",
+                "password": "Mot de passe",
+                "confirmPassword": "Confirmer le mot de passe",
+                "firstName": "Prénom",
+                "lastName": "Nom",
+                "country": "Pays",
+                "loginWithGoogle": "Connexion avec Google",
+                "registerWithGoogle": "Inscription avec Google",
+                "secureConnection": "Connexion sécurisée avec Firebase",
+                "invalidEmail": "Adresse email invalide",
+                "weakPassword": "Le mot de passe est trop faible",
+                "passwordMismatch": "Les mots de passe ne correspondent pas",
+                "emailInUse": "Email déjà utilisé",
+                "wrongPassword": "Mot de passe incorrect",
+                "userNotFound": "Utilisateur non trouvé",
+                "networkError": "Erreur réseau. Veuillez réessayer.",
+                
+                // Pages
+                "welcomeUser": "Bienvenue",
+                "offersTitle": "Offres de prêts disponibles",
+                "offersSubtitle": "Sélectionnez une offre pour discuter avec notre conseiller",
+                "privateChat": "Chat Privé",
+                "conversations": "Conversations",
+                "adminPanel": "Panneau d'administration",
+                "adminWelcome": "Bienvenue dans le panneau d'administration",
+                "adminInstructions": "Utilisez les boutons ci-dessus pour gérer les annonces, les utilisateurs et les conversations.",
+                
+                // Chat
+                "messagePlaceholder": "Tapez votre message...",
+                "noMessages": "Aucun message pour le moment. Commencez la conversation !",
+                "viewProfile": "Voir le profil",
+                "userProfile": "Profil utilisateur",
+                "admin": "Admin",
+                "verified": "Vérifié",
+                "messageSent": "Envoyé",
+                "messageDelivered": "Distribué",
+                "messageRead": "Lu",
+                "messageEdited": "Modifié",
+                "messageDeleted": "Ce message a été supprimé",
+                "copyMessage": "Copier le message",
+                "reply": "Répondre",
+                "editMessage": "Modifier le message",
+                "deleteMessage": "Supprimer le message",
+                "typeMessage": "Tapez un message...",
+                
+                // Annonces
+                "createPost": "Créer une annonce",
+                "uploadPhoto": "Télécharger une photo",
+                "uploadInstructions": "Cliquez pour sélectionner ou glissez-déposez une image",
+                "removeImage": "Supprimer l'image",
+                "publish": "Publier",
+                "loanOfferButton": "Souhaitez-vous recevoir un prêt de cette banque, cliquez ici pour discuter avec eux",
+                
+                // Utilisateurs
+                "viewAllUsers": "Voir tous les utilisateurs",
+                "allUsers": "Tous les utilisateurs",
+                "startChat": "Démarrer le chat",
+                "goToChat": "Aller au chat",
+                
+                // Profil
+                "profileLanguage": "Langue",
+                "registrationDate": "Date d'inscription",
+                "lastSeen": "Dernière connexion",
+                "role": "Rôle",
+                "user": "Utilisateur",
+                
+                // Statuts de lecture
+                "sent": "Envoyé",
+                "delivered": "Distribué",
+                "read": "Lu"
+            },
+            es: {
+                // Général
+                "login": "Iniciar sesión",
+                "register": "Registrarse",
+                "logout": "Cerrar sesión",
+                "cancel": "Cancelar",
+                "save": "Guardar",
+                "delete": "Eliminar",
+                "edit": "Editar",
+                "send": "Enviar",
+                "back": "Volver",
+                "close": "Cerrar",
+                "confirm": "Confirmar",
+                "loading": "Cargando...",
+                "error": "Error",
+                "success": "Éxito",
+                "warning": "Advertencia",
+                "info": "Información",
+                "or": "O",
+                "online": "En línea",
+                "offline": "Desconectado",
+                "typing": "Escribiendo...",
+                
+                // Authentification
+                "email": "Correo electrónico",
+                "password": "Contraseña",
+                "confirmPassword": "Confirmar contraseña",
+                "firstName": "Nombre",
+                "lastName": "Apellido",
+                "country": "País",
+                "loginWithGoogle": "Iniciar sesión con Google",
+                "registerWithGoogle": "Registrarse con Google",
+                "secureConnection": "Conexión segura con Firebase",
+                "invalidEmail": "Dirección de correo electrónico inválida",
+                "weakPassword": "La contraseña es demasiado débil",
+                "passwordMismatch": "Las contraseñas no coinciden",
+                "emailInUse": "El correo electrónico ya está en uso",
+                "wrongPassword": "Contraseña incorrecta",
+                "userNotFound": "Usuario no encontrado",
+                "networkError": "Error de red. Por favor, inténtelo de nuevo.",
+                
+                // Pages
+                "welcomeUser": "Bienvenido",
+                "offersTitle": "Ofertas de préstamos disponibles",
+                "offersSubtitle": "Seleccione una oferta para hablar con nuestro asesor",
+                "privateChat": "Chat Privado",
+                "conversations": "Conversaciones",
+                "adminPanel": "Panel de administración",
+                "adminWelcome": "Bienvenido al panel de administración",
+                "adminInstructions": "Use los botones de arriba para gestionar anuncios, usuarios y conversaciones.",
+                
+                // Chat
+                "messagePlaceholder": "Escriba su mensaje...",
+                "noMessages": "Aún no hay mensajes. ¡Comience la conversación!",
+                "viewProfile": "Ver Perfil",
+                "userProfile": "Perfil de usuario",
+                "admin": "Administrador",
+                "verified": "Verificado",
+                "messageSent": "Enviado",
+                "messageDelivered": "Entregado",
+                "messageRead": "Leído",
+                "messageEdited": "Editado",
+                "messageDeleted": "Este mensaje ha sido eliminado",
+                "copyMessage": "Copiar mensaje",
+                "reply": "Responder",
+                "editMessage": "Editar mensaje",
+                "deleteMessage": "Eliminar mensaje",
+                "typeMessage": "Escriba un mensaje...",
+                
+                // Annonces
+                "createPost": "Crear anuncio",
+                "uploadPhoto": "Subir foto",
+                "uploadInstructions": "Haga clic para seleccionar o arrastre y suelte una imagen",
+                "removeImage": "Eliminar imagen",
+                "publish": "Publicar",
+                "loanOfferButton": "¿Le gustaría recibir un préstamo de este banco? Haga clic aquí para hablar con ellos",
+                
+                // Utilisateurs
+                "viewAllUsers": "Ver todos los usuarios",
+                "allUsers": "Todos los usuarios",
+                "startChat": "Iniciar chat",
+                "goToChat": "Ir al chat",
+                
+                // Profil
+                "profileLanguage": "Idioma",
+                "registrationDate": "Fecha de registro",
+                "lastSeen": "Última conexión",
+                "role": "Rol",
+                "user": "Usuario",
+                
+                // Statuts de lecture
+                "sent": "Enviado",
+                "delivered": "Entregado",
+                "read": "Leído"
+            },
+            de: {
+                // Général
+                "login": "Anmelden",
+                "register": "Registrieren",
+                "logout": "Abmelden",
+                "cancel": "Abbrechen",
+                "save": "Speichern",
+                "delete": "Löschen",
+                "edit": "Bearbeiten",
+                "send": "Senden",
+                "back": "Zurück",
+                "close": "Schließen",
+                "confirm": "Bestätigen",
+                "loading": "Wird geladen...",
+                "error": "Fehler",
+                "success": "Erfolg",
+                "warning": "Warnung",
+                "info": "Information",
+                "or": "Oder",
+                "online": "Online",
+                "offline": "Offline",
+                "typing": "Schreibt...",
+                
+                // Authentification
+                "email": "E-Mail",
+                "password": "Passwort",
+                "confirmPassword": "Passwort bestätigen",
+                "firstName": "Vorname",
+                "lastName": "Nachname",
+                "country": "Land",
+                "loginWithGoogle": "Mit Google anmelden",
+                "registerWithGoogle": "Mit Google registrieren",
+                "secureConnection": "Sichere Verbindung mit Firebase",
+                "invalidEmail": "Ungültige E-Mail-Adresse",
+                "weakPassword": "Passwort ist zu schwach",
+                "passwordMismatch": "Passwörter stimmen nicht überein",
+                "emailInUse": "E-Mail wird bereits verwendet",
+                "wrongPassword": "Falsches Passwort",
+                "userNotFound": "Benutzer nicht gefunden",
+                "networkError": "Netzwerkfehler. Bitte versuchen Sie es erneut.",
+                
+                // Pages
+                "welcomeUser": "Willkommen",
+                "offersTitle": "Verfügbare Kreditangebote",
+                "offersSubtitle": "Wählen Sie ein Angebot, um mit unserem Berater zu sprechen",
+                "privateChat": "Privater Chat",
+                "conversations": "Konversationen",
+                "adminPanel": "Administrator-Panel",
+                "adminWelcome": "Willkommen im Administrator-Panel",
+                "adminInstructions": "Verwenden Sie die obigen Schaltflächen, um Anzeigen, Benutzer und Konversationen zu verwalten.",
+                
+                // Chat
+                "messagePlaceholder": "Geben Sie Ihre Nachricht ein...",
+                "noMessages": "Noch keine Nachrichten. Beginnen Sie die Konversation!",
+                "viewProfile": "Profil anzeigen",
+                "userProfile": "Benutzerprofil",
+                "admin": "Administrator",
+                "verified": "Verifiziert",
+                "messageSent": "Gesendet",
+                "messageDelivered": "Zugestellt",
+                "messageRead": "Gelesen",
+                "messageEdited": "Bearbeitet",
+                "messageDeleted": "Diese Nachricht wurde gelöscht",
+                "copyMessage": "Nachricht kopieren",
+                "reply": "Antworten",
+                "editMessage": "Nachricht bearbeiten",
+                "deleteMessage": "Nachricht löschen",
+                "typeMessage": "Nachricht eingeben...",
+                
+                // Annonces
+                "createPost": "Anzeige erstellen",
+                "uploadPhoto": "Foto hochladen",
+                "uploadInstructions": "Klicken Sie, um ein Bild auszuwählen, oder ziehen Sie es per Drag & Drop",
+                "removeImage": "Bild entfernen",
+                "publish": "Veröffentlichen",
+                "loanOfferButton": "Möchten Sie einen Kredit von dieser Bank erhalten? Klicken Sie hier, um mit ihnen zu sprechen",
+                
+                // Utilisateurs
+                "viewAllUsers": "Alle Benutzer anzeigen",
+                "allUsers": "Alle Benutzer",
+                "startChat": "Chat starten",
+                "goToChat": "Zum Chat gehen",
+                
+                // Profil
+                "profileLanguage": "Sprache",
+                "registrationDate": "Registrierungsdatum",
+                "lastSeen": "Zuletzt gesehen",
+                "role": "Rolle",
+                "user": "Benutzer",
+                
+                // Statuts de lecture
+                "sent": "Gesendet",
+                "delivered": "Zugestellt",
+                "read": "Gelesen"
+            }
+        };
+        
+        // Initialisation de l'application
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Initialiser les traductions
+            translations = translationData;
+            
+            // Vérifier la langue sauvegardée
+            const savedLanguage = localStorage.getItem('banco_language');
+            if (savedLanguage && translations[savedLanguage]) {
+                currentLanguage = savedLanguage;
+                // Si une langue est déjà sauvegardée, passer directement à l'authentification
+                showPage('auth');
+                applyTranslations();
+            } else {
+                // Afficher la sélection de langue
+                showPage('language');
+                populateLanguages();
+            }
+            
+            // Initialiser Firebase
+            await initializeFirebase();
+            
+            // Configurer les écouteurs d'événements
+            setupEventListeners();
+        });
+        
+        // Fonction pour initialiser Firebase
+        async function initializeFirebase() {
+            try {
+                // Vérifier si Firebase est chargé
+                if (typeof firebase === 'undefined') {
+                    console.error('Firebase n\'est pas chargé');
+                    return;
+                }
+                
+                // Vérifier l'état d'authentification
+                const auth = window.firebaseAuth;
+                if (auth) {
+                    onAuthStateChanged(auth, async (user) => {
+                        if (user) {
+                            // L'utilisateur est connecté
+                            currentUser = user;
+                            
+                            // Mettre à jour le statut en ligne dans Firestore
+                            await updateUserStatus(true);
+                            
+                            // Récupérer les données de l'utilisateur depuis Firestore
+                            const userData = await getUserData(user.uid);
+                            
+                            // Vérifier si c'est l'admin
+                            if (userData && userData.role === 'admin') {
+                                adminUser = user;
+                                showPage('admin');
+                                loadAdminData();
+                            } else {
+                                showPage('userHome');
+                                loadUserPosts();
+                            }
+                            
+                            // Mettre à jour l'avatar
+                            updateUserAvatar();
+                        } else {
+                            // L'utilisateur est déconnecté
+                            currentUser = null;
+                            adminUser = null;
+                            
+                            // Vérifier si on est sur la page de langue ou d'authentification
+                            if (currentPage !== 'language' && currentPage !== 'auth') {
+                                showPage('auth');
+                            }
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Erreur d\'initialisation Firebase:', error);
+            }
+        }
+        
+        // Fonction pour afficher une page
+        function showPage(pageName) {
+            // Masquer toutes les pages
+            document.querySelectorAll('.page').forEach(page => {
+                page.classList.remove('active');
+            });
+            
+            // Afficher la page demandée
+            const pageElement = document.getElementById(`${pageName}Page`);
+            if (pageElement) {
+                pageElement.classList.add('active');
+                currentPage = pageName;
+            }
+        }
+        
+        // Fonction pour peupler la liste des langues
+        function populateLanguages() {
+            const languagesGrid = document.getElementById('languagesGrid');
+            if (!languagesGrid) return;
+            
+            languagesGrid.innerHTML = '';
+            
+            languages.forEach(lang => {
+                const langElement = document.createElement('div');
+                langElement.className = 'language-item';
+                langElement.innerHTML = `
+                    <div class="language-flag">${lang.flag}</div>
+                    <div class="language-name">${lang.name}</div>
+                `;
+                
+                langElement.addEventListener('click', () => {
+                    selectLanguage(lang.code);
+                });
+                
+                languagesGrid.appendChild(langElement);
+            });
+        }
+        
+        // Fonction pour sélectionner une langue
+        function selectLanguage(langCode) {
+            if (!translations[langCode]) {
+                langCode = 'fr'; // Langue par défaut
+            }
+            
+            currentLanguage = langCode;
+            localStorage.setItem('banco_language', langCode);
+            
+            // Appliquer les traductions immédiatement
+            applyTranslations();
+            
+            // Rediriger vers la page d'authentification
+            showPage('auth');
+        }
+        
+        // Fonction pour appliquer les traductions
+        function applyTranslations() {
+            const elements = document.querySelectorAll('[data-i18n]');
+            
+            elements.forEach(element => {
+                const key = element.getAttribute('data-i18n');
+                if (translations[currentLanguage] && translations[currentLanguage][key]) {
+                    if (element.tagName === 'INPUT' && element.type !== 'submit' && element.type !== 'button') {
+                        element.placeholder = translations[currentLanguage][key];
+                    } else {
+                        element.textContent = translations[currentLanguage][key];
+                    }
+                }
+            });
+            
+            // Mettre à jour la liste des pays dans le formulaire d'inscription
+            populateCountries();
+        }
+        
+        // Fonction pour peupler la liste des pays
+        function populateCountries() {
+            const countrySelect = document.getElementById('registerCountry');
+            if (!countrySelect) return;
+            
+            countrySelect.innerHTML = `<option value="" disabled selected>${translations[currentLanguage]?.country || 'Sélectionnez un pays'}</option>`;
+            
+            countries.forEach(country => {
+                const option = document.createElement('option');
+                option.value = country;
+                option.textContent = country;
+                countrySelect.appendChild(option);
+            });
+        }
+        
+        // Fonction pour configurer les écouteurs d'événements
+        function setupEventListeners() {
+            // Onglets d'authentification
+            document.getElementById('loginTab')?.addEventListener('click', () => {
+                document.getElementById('loginTab')?.classList.add('active');
+                document.getElementById('registerTab')?.classList.remove('active');
+                document.getElementById('loginForm')?.classList.remove('d-none');
+                document.getElementById('registerForm')?.classList.add('d-none');
+                document.getElementById('authTitle').textContent = translations[currentLanguage]?.login || 'Connexion';
+            });
+            
+            document.getElementById('registerTab')?.addEventListener('click', () => {
+                document.getElementById('registerTab')?.classList.add('active');
+                document.getElementById('loginTab')?.classList.remove('active');
+                document.getElementById('registerForm')?.classList.remove('d-none');
+                document.getElementById('loginForm')?.classList.add('d-none');
+                document.getElementById('authTitle').textContent = translations[currentLanguage]?.register || 'Inscription';
+            });
+            
+            // Connexion par email
+            document.getElementById('loginFormElement')?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await loginWithEmail();
+            });
+            
+            // Inscription par email
+            document.getElementById('registerFormElement')?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await registerWithEmail();
+            });
+            
+            // Connexion avec Google
+            document.getElementById('googleLoginBtn')?.addEventListener('click', async () => {
+                await loginWithGoogle();
+            });
+            
+            document.getElementById('googleRegisterBtn')?.addEventListener('click', async () => {
+                await loginWithGoogle();
+            });
+            
+            // Déconnexion
+            document.getElementById('logoutBtn')?.addEventListener('click', logout);
+            document.getElementById('chatLogoutBtn')?.addEventListener('click', logout);
+            document.getElementById('adminLogoutBtn')?.addEventListener('click', logout);
+            
+            // Retour à l'accueil
+            document.getElementById('backToHomeBtn')?.addEventListener('click', () => {
+                if (adminUser) {
+                    showPage('admin');
+                } else {
+                    showPage('userHome');
+                }
+            });
+            
+            // Menu mobile chat
+            document.getElementById('chatMenuToggle')?.addEventListener('click', () => {
+                document.getElementById('chatSidebar')?.classList.add('active');
+            });
+            
+            document.getElementById('closeSidebarBtn')?.addEventListener('click', () => {
+                document.getElementById('chatSidebar')?.classList.remove('active');
+            });
+            
+            // Envoi de messages
+            document.getElementById('sendMessageBtn')?.addEventListener('click', sendMessage);
+            
+            document.getElementById('messageInput')?.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+            
+            // Modals
+            document.getElementById('closeProfileModal')?.addEventListener('click', () => {
+                document.getElementById('profileModal')?.classList.add('d-none');
+            });
+            
+            document.getElementById('closeCreatePostModal')?.addEventListener('click', () => {
+                document.getElementById('createPostModal')?.classList.add('d-none');
+            });
+            
+            document.getElementById('closeUsersModal')?.addEventListener('click', () => {
+                document.getElementById('usersModal')?.classList.add('d-none');
+            });
+            
+            document.getElementById('cancelPostBtn')?.addEventListener('click', () => {
+                document.getElementById('createPostModal')?.classList.add('d-none');
+            });
+            
+            // Boutons admin
+            document.getElementById('createPostBtn')?.addEventListener('click', () => {
+                document.getElementById('createPostModal')?.classList.remove('d-none');
+            });
+            
+            document.getElementById('viewAllUsersBtn')?.addEventListener('click', showAllUsers);
+            document.getElementById('adminChatBtn')?.addEventListener('click', () => {
+                showPage('chat');
+                loadAdminChats();
+            });
+            
+            document.getElementById('viewProfileBtn')?.addEventListener('click', viewCurrentChatProfile);
+            
+            // Upload d'images pour les annonces
+            document.getElementById('postUploadArea')?.addEventListener('click', () => {
+                document.getElementById('postImageInput')?.click();
+            });
+            
+            document.getElementById('postImageInput')?.addEventListener('change', handlePostImageSelect);
+            document.getElementById('removePostImageBtn')?.addEventListener('click', removePostImage);
+            document.getElementById('publishPostBtn')?.addEventListener('click', publishPost);
+            
+            // Fermer les modals en cliquant à l'extérieur
+            document.querySelectorAll('.modal-overlay').forEach(modal => {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        modal.classList.add('d-none');
+                    }
+                });
+            });
+        }
+        
+        // Fonction de connexion par email
+        async function loginWithEmail() {
+            const email = document.getElementById('loginEmail')?.value;
+            const password = document.getElementById('loginPassword')?.value;
+            
+            if (!email || !password) {
+                showAlert('Veuillez remplir tous les champs', 'danger');
+                return;
+            }
+            
+            try {
+                const auth = window.firebaseAuth;
+                const { signInWithEmailAndPassword } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js");
+                
+                await signInWithEmailAndPassword(auth, email, password);
+                showAlert('Connexion réussie', 'success');
+            } catch (error) {
+                console.error('Erreur de connexion:', error);
+                let errorMessage = translations[currentLanguage]?.networkError || 'Erreur réseau';
+                
+                switch (error.code) {
+                    case 'auth/invalid-email':
+                        errorMessage = translations[currentLanguage]?.invalidEmail || 'Email invalide';
+                        break;
+                    case 'auth/user-disabled':
+                        errorMessage = 'Compte désactivé';
+                        break;
+                    case 'auth/user-not-found':
+                        errorMessage = translations[currentLanguage]?.userNotFound || 'Utilisateur non trouvé';
+                        break;
+                    case 'auth/wrong-password':
+                        errorMessage = translations[currentLanguage]?.wrongPassword || 'Mot de passe incorrect';
+                        break;
+                }
+                
+                showAlert(errorMessage, 'danger');
+            }
+        }
+        
+        // Fonction d'inscription par email
+        async function registerWithEmail() {
+            const firstName = document.getElementById('registerFirstName')?.value;
+            const lastName = document.getElementById('registerLastName')?.value;
+            const country = document.getElementById('registerCountry')?.value;
+            const email = document.getElementById('registerEmail')?.value;
+            const password = document.getElementById('registerPassword')?.value;
+            const confirmPassword = document.getElementById('registerConfirmPassword')?.value;
+            
+            if (!firstName || !lastName || !country || !email || !password || !confirmPassword) {
+                showAlert('Veuillez remplir tous les champs', 'danger');
+                return;
+            }
+            
+            if (password !== confirmPassword) {
+                showAlert(translations[currentLanguage]?.passwordMismatch || 'Les mots de passe ne correspondent pas', 'danger');
+                return;
+            }
+            
+            if (password.length < 6) {
+                showAlert(translations[currentLanguage]?.weakPassword || 'Le mot de passe doit contenir au moins 6 caractères', 'danger');
+                return;
+            }
+            
+            try {
+                const auth = window.firebaseAuth;
+                const db = window.firebaseDb;
+                const { createUserWithEmailAndPassword } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js");
+                const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+                
+                // Créer l'utilisateur dans Firebase Authentication
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+                
+                // Créer le profil utilisateur dans Firestore
+                await setDoc(doc(db, 'users', user.uid), {
+                    uid: user.uid,
+                    firstName: firstName,
+                    lastName: lastName,
+                    country: country,
+                    email: email,
+                    language: currentLanguage,
+                    role: 'user',
+                    createdAt: new Date(),
+                    lastSeen: new Date(),
+                    isOnline: true
+                });
+                
+                showAlert('Inscription réussie', 'success');
+            } catch (error) {
+                console.error('Erreur d\'inscription:', error);
+                let errorMessage = translations[currentLanguage]?.networkError || 'Erreur réseau';
+                
+                switch (error.code) {
+                    case 'auth/email-already-in-use':
+                        errorMessage = translations[currentLanguage]?.emailInUse || 'Email déjà utilisé';
+                        break;
+                    case 'auth/invalid-email':
+                        errorMessage = translations[currentLanguage]?.invalidEmail || 'Email invalide';
+                        break;
+                    case 'auth/weak-password':
+                        errorMessage = translations[currentLanguage]?.weakPassword || 'Mot de passe trop faible';
+                        break;
+                }
+                
+                showAlert(errorMessage, 'danger');
+            }
+        }
+        
+        // Fonction de connexion avec Google
+        async function loginWithGoogle() {
+            try {
+                const auth = window.firebaseAuth;
+                const db = window.firebaseDb;
+                const googleProvider = window.googleProvider;
+                const { signInWithPopup } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js");
+                const { doc, setDoc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+                
+                const result = await signInWithPopup(auth, googleProvider);
+                const user = result.user;
+                
+                // Vérifier si l'utilisateur existe déjà dans Firestore
+                const userDoc = await getDoc(doc(db, 'users', user.uid));
+                
+                if (!userDoc.exists()) {
+                    // Créer un nouveau profil utilisateur
+                    const nameParts = user.displayName ? user.displayName.split(' ') : ['Utilisateur', ''];
+                    const firstName = nameParts[0];
+                    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+                    
+                    await setDoc(doc(db, 'users', user.uid), {
+                        uid: user.uid,
+                        firstName: firstName,
+                        lastName: lastName,
+                        country: 'Non spécifié',
+                        email: user.email,
+                        language: currentLanguage,
+                        role: 'user',
+                        createdAt: new Date(),
+                        lastSeen: new Date(),
+                        isOnline: true,
+                        photoURL: user.photoURL
+                    });
+                }
+                
+                showAlert('Connexion réussie avec Google', 'success');
+            } catch (error) {
+                console.error('Erreur de connexion Google:', error);
+                showAlert('Erreur de connexion avec Google', 'danger');
+            }
+        }
+        
+        // Fonction de déconnexion
+        async function logout() {
+            try {
+                const auth = window.firebaseAuth;
+                const { signOut } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js");
+                
+                // Mettre à jour le statut hors ligne
+                if (currentUser) {
+                    await updateUserStatus(false);
+                }
+                
+                await signOut(auth);
+                currentUser = null;
+                adminUser = null;
+                showPage('auth');
+            } catch (error) {
+                console.error('Erreur de déconnexion:', error);
+                showAlert('Erreur lors de la déconnexion', 'danger');
+            }
+        }
+        
+        // Fonction pour mettre à jour le statut de l'utilisateur
+        async function updateUserStatus(isOnline) {
+            if (!currentUser) return;
+            
+            try {
+                const db = window.firebaseDb;
+                const { doc, updateDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+                
+                await updateDoc(doc(db, 'users', currentUser.uid), {
+                    isOnline: isOnline,
+                    lastSeen: new Date()
+                });
+            } catch (error) {
+                console.error('Erreur de mise à jour du statut:', error);
+            }
+        }
+        
+        // Fonction pour récupérer les données de l'utilisateur
+        async function getUserData(uid) {
+            try {
+                const db = window.firebaseDb;
+                const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+                
+                const userDoc = await getDoc(doc(db, 'users', uid));
+                return userDoc.exists() ? userDoc.data() : null;
+            } catch (error) {
+                console.error('Erreur de récupération des données utilisateur:', error);
+                return null;
+            }
+        }
+        
+        // Fonction pour mettre à jour l'avatar utilisateur
+        function updateUserAvatar() {
+            if (!currentUser) return;
+            
+            const initials = getInitials(currentUser.displayName || currentUser.email);
+            
+            // Mettre à jour tous les avatars
+            document.querySelectorAll('#userAvatar, #chatUserAvatar, #adminAvatar').forEach(avatar => {
+                const initialsSpan = avatar.querySelector('span');
+                if (initialsSpan) {
+                    initialsSpan.textContent = initials;
+                }
+                
+                // Si l'utilisateur a une photo de profil
+                if (currentUser.photoURL) {
+                    avatar.innerHTML = `<img src="${currentUser.photoURL}" alt="Avatar">`;
+                }
+            });
+        }
+        
+        // Fonction pour obtenir les initiales
+        function getInitials(name) {
+            if (!name) return 'U';
+            
+            const nameParts = name.split(' ');
+            if (nameParts.length >= 2) {
+                return (nameParts[0][0] + nameParts[1][0]).toUpperCase();
+            } else {
+                return name.substring(0, 2).toUpperCase();
+            }
+        }
+        
+        // Fonction pour afficher une alerte
+        function showAlert(message, type) {
+            // Créer l'élément d'alerte
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.textContent = message;
+            
+            // Ajouter l'alerte au début du conteneur
+            const container = document.querySelector('.glass-container');
+            if (container) {
+                container.insertBefore(alertDiv, container.firstChild);
+                
+                // Supprimer l'alerte après 5 secondes
+                setTimeout(() => {
+                    if (alertDiv.parentNode) {
+                        alertDiv.parentNode.removeChild(alertDiv);
+                    }
+                }, 5000);
+            }
+        }
+        
+        // Fonction pour charger les annonces pour l'utilisateur
+        async function loadUserPosts(page = 1) {
+            const postsContainer = document.getElementById('postsContainer');
+            const paginationContainer = document.getElementById('postsPagination');
+            
+            if (!postsContainer || !paginationContainer) return;
+            
+            postsContainer.innerHTML = '<div class="text-center" style="color: white; grid-column: 1 / -1; padding: 40px;"><p>' + (translations[currentLanguage]?.loading || 'Chargement...') + '</p></div>';
+            
+            try {
+                const db = window.firebaseDb;
+                const { collection, getDocs, query, orderBy, limit } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+                
+                // Récupérer les annonces (limité à 6 par page pour la démonstration)
+                const postsPerPage = 6;
+                const postsQuery = query(
+                    collection(db, 'posts'),
+                    orderBy('createdAt', 'desc')
+                );
+                
+                const postsSnapshot = await getDocs(postsQuery);
+                const allPosts = [];
+                
+                postsSnapshot.forEach(doc => {
+                    allPosts.push({ id: doc.id, ...doc.data() });
+                });
+                
+                // Calculer la pagination
+                const totalPages = Math.ceil(allPosts.length / postsPerPage);
+                const startIndex = (page - 1) * postsPerPage;
+                const endIndex = startIndex + postsPerPage;
+                const pagePosts = allPosts.slice(startIndex, endIndex);
+                
+                // Afficher les annonces
+                postsContainer.innerHTML = '';
+                
+                if (pagePosts.length === 0) {
+                    postsContainer.innerHTML = '<div class="text-center" style="color: white; grid-column: 1 / -1; padding: 40px;"><p>Aucune annonce disponible pour le moment.</p></div>';
+                    paginationContainer.innerHTML = '';
+                    return;
+                }
+                
+                pagePosts.forEach(post => {
+                    const postCard = document.createElement('div');
+                    postCard.className = 'post-card';
+                    postCard.innerHTML = `
+                        <img src="${post.imageUrl}" alt="Annonce" class="post-image">
+                        <div class="post-content">
+                            <div class="post-action">
+                                <button class="btn btn-primary btn-block start-chat-btn" data-post-id="${post.id}">
+                                    ${translations[currentLanguage]?.loanOfferButton || 'Souhaitez-vous recevoir un prêt de cette banque, cliquez ici pour discuter avec eux'}
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Ajouter l'écouteur d'événement pour démarrer le chat
+                    const chatBtn = postCard.querySelector('.start-chat-btn');
+                    chatBtn.addEventListener('click', () => {
+                        startChatWithAdmin();
+                    });
+                    
+                    postsContainer.appendChild(postCard);
+                });
+                
+                // Afficher la pagination
+                if (totalPages > 1) {
+                    paginationContainer.innerHTML = '';
+                    
+                    // Bouton précédent
+                    const prevButton = document.createElement('button');
+                    prevButton.className = 'pagination-btn';
+                    prevButton.innerHTML = '<i class="fas fa-chevron-left"></i>';
+                    prevButton.disabled = page === 1;
+                    prevButton.addEventListener('click', () => {
+                        if (page > 1) {
+                            loadUserPosts(page - 1);
+                        }
+                    });
+                    paginationContainer.appendChild(prevButton);
+                    
+                    // Pages
+                    for (let i = 1; i <= totalPages; i++) {
+                        const pageButton = document.createElement('button');
+                        pageButton.className = `pagination-btn ${i === page ? 'active' : ''}`;
+                        pageButton.textContent = i;
+                        pageButton.addEventListener('click', () => {
+                            loadUserPosts(i);
+                        });
+                        paginationContainer.appendChild(pageButton);
+                    }
+                    
+                    // Bouton suivant
+                    const nextButton = document.createElement('button');
+                    nextButton.className = 'pagination-btn';
+                    nextButton.innerHTML = '<i class="fas fa-chevron-right"></i>';
+                    nextButton.disabled = page === totalPages;
+                    nextButton.addEventListener('click', () => {
+                        if (page < totalPages) {
+                            loadUserPosts(page + 1);
+                        }
+                    });
+                    paginationContainer.appendChild(nextButton);
+                } else {
+                    paginationContainer.innerHTML = '';
+                }
+                
+            } catch (error) {
+                console.error('Erreur de chargement des annonces:', error);
+                postsContainer.innerHTML = '<div class="text-center" style="color: white; grid-column: 1 / -1; padding: 40px;"><p>Erreur de chargement des annonces.</p></div>';
+            }
+        }
+        
+        // Fonction pour démarrer un chat avec l'admin
+        async function startChatWithAdmin() {
+            // Pour un utilisateur normal, on démarre toujours un chat avec l'admin
+            // On doit d'abord trouver l'admin dans la base de données
+            
+            try {
+                const db = window.firebaseDb;
+                const { collection, getDocs, query, where } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+                
+                // Rechercher l'utilisateur avec le rôle admin
+                const usersQuery = query(collection(db, 'users'), where('role', '==', 'admin'));
+                const usersSnapshot = await getDocs(usersQuery);
+                
+                let adminId = null;
+                usersSnapshot.forEach(doc => {
+                    adminId = doc.id;
+                });
+                
+                if (!adminId) {
+                    showAlert('Administrateur non trouvé', 'danger');
+                    return;
+                }
+                
+                // Aller à la page de chat
+                showPage('chat');
+                currentChatWith = adminId;
+                loadChatMessages(adminId);
+                loadChatList();
+                
+                // Mettre à jour les infos du chat
+                updateChatUserInfo(adminId);
+                
+            } catch (error) {
+                console.error('Erreur de démarrage du chat:', error);
+                showAlert('Erreur de démarrage du chat', 'danger');
+            }
+        }
+        
+        // Fonction pour charger les messages d'un chat
+        async function loadChatMessages(otherUserId) {
+            if (!currentUser || !otherUserId) return;
+            
+            const chatMessages = document.getElementById('chatMessages');
+            if (!chatMessages) return;
+            
+            chatMessages.innerHTML = '<div class="text-center" style="color: rgba(255, 255, 255, 0.7); margin-top: 40px;"><p>' + (translations[currentLanguage]?.loading || 'Chargement...') + '</p></div>';
+            
+            try {
+                const db = window.firebaseDb;
+                const { collection, query, where, orderBy, onSnapshot } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+                
+                // Déterminer l'ID de la conversation
+                const chatId = getChatId(currentUser.uid, otherUserId);
+                
+                // Arrêter l'écouteur précédent s'il existe
+                if (messageListeners[chatId]) {
+                    messageListeners[chatId]();
+                }
+                
+                // Écouter les messages en temps réel
+                const messagesQuery = query(
+                    collection(db, 'chats', chatId, 'messages'),
+                    orderBy('timestamp', 'asc')
+                );
+                
+                messageListeners[chatId] = onSnapshot(messagesQuery, (snapshot) => {
+                    chatMessages.innerHTML = '';
+                    
+                    if (snapshot.empty) {
+                        chatMessages.innerHTML = '<div class="text-center" style="color: rgba(255, 255, 255, 0.7); margin-top: 40px;"><p>' + (translations[currentLanguage]?.noMessages || 'Aucun message pour le moment') + '</p></div>';
+                        return;
+                    }
+                    
+                    snapshot.forEach(doc => {
+                        const message = doc.data();
+                        displayMessage(message, doc.id);
+                    });
+                    
+                    // Faire défiler vers le bas
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                    
+                    // Marquer les messages comme lus si l'utilisateur est le destinataire
+                    markMessagesAsRead(otherUserId);
+                });
+                
+            } catch (error) {
+                console.error('Erreur de chargement des messages:', error);
+                chatMessages.innerHTML = '<div class="text-center" style="color: rgba(255, 255, 255, 0.7); margin-top: 40px;"><p>Erreur de chargement des messages.</p></div>';
+            }
+        }
+        
+        // Fonction pour afficher un message
+        function displayMessage(message, messageId) {
+            const chatMessages = document.getElementById('chatMessages');
+            if (!chatMessages) return;
+            
+            const isSentByMe = message.senderId === currentUser.uid;
+            const isDeleted = message.deleted || false;
+            
+            const messageElement = document.createElement('div');
+            messageElement.className = `message ${isSentByMe ? 'message-sent' : 'message-received'}`;
+            messageElement.dataset.messageId = messageId;
+            
+            let messageContent = '';
+            
+            if (isDeleted) {
+                messageContent = `<div class="message-text message-deleted">${translations[currentLanguage]?.messageDeleted || 'Ce message a été supprimé'}</div>`;
+            } else if (message.type === 'image') {
+                messageContent = `<div class="message-text"><img src="${message.content}" alt="Image" style="max-width: 100%; border-radius: 8px;"></div>`;
+            } else {
+                messageContent = `<div class="message-text">${escapeHtml(message.content)}</div>`;
+                
+                if (message.edited) {
+                    messageContent += `<div class="message-edited">${translations[currentLanguage]?.messageEdited || 'Modifié'}</div>`;
+                }
+            }
+            
+            // Afficher l'heure
+            let timeString = '';
+            if (message.timestamp) {
+                const date = message.timestamp.toDate();
+                timeString = date.toLocaleTimeString(currentLanguage, { hour: '2-digit', minute: '2-digit' });
+            }
+            
+            // Afficher le statut de lecture pour les messages envoyés
+            let statusHtml = '';
+            if (isSentByMe && !isDeleted) {
+                let statusText = translations[currentLanguage]?.sent || 'Envoyé';
+                let statusIcon = 'fa-check';
+                
+                if (message.readBy && message.readBy.includes(currentChatWith)) {
+                    statusText = translations[currentLanguage]?.read || 'Lu';
+                    statusIcon = 'fa-check-double';
+                } else if (message.deliveredTo && message.deliveredTo.includes(currentChatWith)) {
+                    statusText = translations[currentLanguage]?.delivered || 'Distribué';
+                    statusIcon = 'fa-check-double';
+                }
+                
+                statusHtml = `<div class="message-status"><i class="fas ${statusIcon}"></i> ${statusText}</div>`;
+            }
+            
+            messageElement.innerHTML = `
+                ${messageContent}
+                <div class="message-time">${timeString}</div>
+                ${statusHtml}
+            `;
+            
+            // Ajouter l'écouteur pour le menu contextuel (clic long)
+            let longPressTimer;
+            messageElement.addEventListener('mousedown', (e) => {
+                longPressTimer = setTimeout(() => {
+                    showMessageContextMenu(e, message, messageId, isSentByMe);
+                }, 800);
+            });
+            
+            messageElement.addEventListener('mouseup', () => {
+                clearTimeout(longPressTimer);
+            });
+            
+            messageElement.addEventListener('mouseleave', () => {
+                clearTimeout(longPressTimer);
+            });
+            
+            // Pour mobile
+            messageElement.addEventListener('touchstart', (e) => {
+                longPressTimer = setTimeout(() => {
+                    e.preventDefault();
+                    showMessageContextMenu(e, message, messageId, isSentByMe);
+                }, 800);
+            });
+            
+            messageElement.addEventListener('touchend', () => {
+                clearTimeout(longPressTimer);
+            });
+            
+            chatMessages.appendChild(messageElement);
+        }
+        
+        // Fonction pour envoyer un message
+        async function sendMessage() {
+            const messageInput = document.getElementById('messageInput');
+            if (!messageInput || !currentUser || !currentChatWith) return;
+            
+            const content = messageInput.value.trim();
+            if (!content) return;
+            
+            try {
+                const db = window.firebaseDb;
+                const { collection, doc, addDoc, serverTimestamp, updateDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+                
+                // Déterminer l'ID de la conversation
+                const chatId = getChatId(currentUser.uid, currentChatWith);
+                
+                // Créer le message
+                const messageData = {
+                    content: content,
+                    senderId: currentUser.uid,
+                    receiverId: currentChatWith,
+                    timestamp: serverTimestamp(),
+                    readBy: [],
+                    deliveredTo: [currentChatWith],
+                    type: 'text',
+                    edited: false
+                };
+                
+                // Si c'est une réponse à un message
+                if (replyingToMessageId) {
+                    messageData.replyTo = replyingToMessageId;
+                }
+                
+                // Ajouter le message à la sous-collection
+                await addDoc(collection(db, 'chats', chatId, 'messages'), messageData);
+                
+                // Mettre à jour la dernière activité de la conversation
+                await updateDoc(doc(db, 'chats', chatId), {
+                    lastMessage: content,
+                    lastMessageTime: serverTimestamp(),
+                    lastMessageSender: currentUser.uid,
+                    participants: [currentUser.uid, currentChatWith]
+                });
+                
+                // Réinitialiser le champ de saisie
+                messageInput.value = '';
+                replyingToMessageId = null;
+                
+            } catch (error) {
+                console.error('Erreur d\'envoi du message:', error);
+                showAlert('Erreur d\'envoi du message', 'danger');
+            }
+        }
+        
+        // Fonction pour obtenir l'ID d'une conversation
+        function getChatId(userId1, userId2) {
+            return [userId1, userId2].sort().join('_');
+        }
+        
+        // Fonction pour afficher le menu contextuel des messages
+        function showMessageContextMenu(event, message, messageId, isSentByMe) {
+            // Supprimer tout menu contextuel existant
+            const existingMenu = document.querySelector('.context-menu');
+            if (existingMenu) {
+                existingMenu.remove();
+            }
+            
+            // Créer le menu contextuel
+            const contextMenu = document.createElement('div');
+            contextMenu.className = 'context-menu';
+            
+            // Positionner le menu
+            const x = event.clientX || event.touches[0].clientX;
+            const y = event.clientY || event.touches[0].clientY;
+            
+            contextMenu.style.left = `${x}px`;
+            contextMenu.style.top = `${y}px`;
+            
+            // Ajouter les options
+            if (!message.deleted) {
+                // Copier
+                const copyOption = document.createElement('div');
+                copyOption.className = 'context-menu-item';
+                copyOption.innerHTML = '<i class="far fa-copy"></i> <span>' + (translations[currentLanguage]?.copyMessage || 'Copier le message') + '</span>';
+                copyOption.addEventListener('click', () => {
+                    navigator.clipboard.writeText(message.content);
+                    contextMenu.remove();
+                });
+                contextMenu.appendChild(copyOption);
+                
+                // Répondre
+                const replyOption = document.createElement('div');
+                replyOption.className = 'context-menu-item';
+                replyOption.innerHTML = '<i class="fas fa-reply"></i> <span>' + (translations[currentLanguage]?.reply || 'Répondre') + '</span>';
+                replyOption.addEventListener('click', () => {
+                    replyingToMessageId = messageId;
+                    document.getElementById('messageInput').placeholder = `Réponse à: ${message.content.substring(0, 30)}...`;
+                    document.getElementById('messageInput').focus();
+                    contextMenu.remove();
+                });
+                contextMenu.appendChild(replyOption);
+                
+                // Modifier (uniquement pour l'expéditeur, dans les 15 minutes)
+                if (isSentByMe && message.type === 'text') {
+                    const messageTime = message.timestamp?.toDate();
+                    const now = new Date();
+                    const diffMinutes = (now - messageTime) / (1000 * 60);
+                    
+                    if (diffMinutes <= 15) {
+                        const editOption = document.createElement('div');
+                        editOption.className = 'context-menu-item';
+                        editOption.innerHTML = '<i class="far fa-edit"></i> <span>' + (translations[currentLanguage]?.editMessage || 'Modifier le message') + '</span>';
+                        editOption.addEventListener('click', () => {
+                            editingMessageId = messageId;
+                            document.getElementById('messageInput').value = message.content;
+                            document.getElementById('messageInput').focus();
+                            contextMenu.remove();
+                        });
+                        contextMenu.appendChild(editOption);
+                    }
+                }
+                
+                // Supprimer (uniquement pour l'expéditeur)
+                if (isSentByMe) {
+                    const deleteOption = document.createElement('div');
+                    deleteOption.className = 'context-menu-item';
+                    deleteOption.innerHTML = '<i class="far fa-trash-alt"></i> <span>' + (translations[currentLanguage]?.deleteMessage || 'Supprimer le message') + '</span>';
+                    deleteOption.addEventListener('click', async () => {
+                        await deleteMessage(messageId);
+                        contextMenu.remove();
+                    });
+                    contextMenu.appendChild(deleteOption);
+                }
+            }
+            
+            document.body.appendChild(contextMenu);
+            
+            // Fermer le menu en cliquant ailleurs
+            const closeMenu = () => {
+                contextMenu.remove();
+                document.removeEventListener('click', closeMenu);
+                document.removeEventListener('touchstart', closeMenu);
+            };
+            
+            setTimeout(() => {
+                document.addEventListener('click', closeMenu);
+                document.addEventListener('touchstart', closeMenu);
+            }, 100);
+        }
+        
+        // Fonction pour supprimer un message
+        async function deleteMessage(messageId) {
+            if (!currentUser || !currentChatWith || !messageId) return;
+            
+            try {
+                const db = window.firebaseDb;
+                const { doc, updateDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+                
+                const chatId = getChatId(currentUser.uid, currentChatWith);
+                const messageRef = doc(db, 'chats', chatId, 'messages', messageId);
+                
+                // Marquer le message comme supprimé plutôt que de le supprimer physiquement
+                await updateDoc(messageRef, {
+                    deleted: true,
+                    content: translations[currentLanguage]?.messageDeleted || 'Ce message a été supprimé'
+                });
+                
+            } catch (error) {
+                console.error('Erreur de suppression du message:', error);
+                showAlert('Erreur de suppression du message', 'danger');
+            }
+        }
+        
+        // Fonction pour marquer les messages comme lus
+        async function markMessagesAsRead(otherUserId) {
+            if (!currentUser || !otherUserId) return;
+            
+            try {
+                const db = window.firebaseDb;
+                const { collection, query, where, getDocs, updateDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+                
+                const chatId = getChatId(currentUser.uid, otherUserId);
+                
+                // Récupérer les messages non lus
+                const unreadMessagesQuery = query(
+                    collection(db, 'chats', chatId, 'messages'),
+                    where('senderId', '==', otherUserId),
+                    where('readBy', 'not-in', [[currentUser.uid]])
+                );
+                
+                const unreadMessages = await getDocs(unreadMessagesQuery);
+                
+                // Marquer chaque message comme lu
+                const batchPromises = [];
+                unreadMessages.forEach((doc) => {
+                    const messageData = doc.data();
+                    const readBy = messageData.readBy || [];
+                    
+                    if (!readBy.includes(currentUser.uid)) {
+                        readBy.push(currentUser.uid);
+                        batchPromises.push(updateDoc(doc.ref, { readBy: readBy }));
+                    }
+                });
+                
+                await Promise.all(batchPromises);
+                
+            } catch (error) {
+                console.error('Erreur de marquage des messages comme lus:', error);
+            }
+        }
+        
+        // Fonction pour charger la liste des conversations
+        async function loadChatList() {
+            if (!currentUser) return;
+            
+            const chatList = document.getElementById('chatList');
+            if (!chatList) return;
+            
+            try {
+                const db = window.firebaseDb;
+                const { collection, query, where, orderBy, onSnapshot } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+                
+                // Écouter les conversations de l'utilisateur
+                const chatsQuery = query(
+                    collection(db, 'chats'),
+                    where('participants', 'array-contains', currentUser.uid),
+                    orderBy('lastMessageTime', 'desc')
+                );
+                
+                onSnapshot(chatsQuery, async (snapshot) => {
+                    chatList.innerHTML = '';
+                    
+                    if (snapshot.empty) {
+                        chatList.innerHTML = '<div class="text-center" style="color: rgba(255, 255, 255, 0.7); padding: 40px;"><p>Aucune conversation</p></div>';
+                        return;
+                    }
+                    
+                    // Pour chaque conversation, afficher l'autre participant
+                    for (const doc of snapshot.docs) {
+                        const chatData = doc.data();
+                        const otherUserId = chatData.participants.find(id => id !== currentUser.uid);
+                        
+                        if (otherUserId) {
+                            const userData = await getUserData(otherUserId);
+                            
+                            if (userData) {
+                                const chatItem = document.createElement('div');
+                                chatItem.className = `chat-list-item ${otherUserId === currentChatWith ? 'active' : ''}`;
+                                chatItem.dataset.userId = otherUserId;
+                                
+                                const initials = getInitials(`${userData.firstName} ${userData.lastName}`);
+                                const time = chatData.lastMessageTime ? chatData.lastMessageTime.toDate().toLocaleTimeString(currentLanguage, { hour: '2-digit', minute: '2-digit' }) : '';
+                                
+                                chatItem.innerHTML = `
+                                    <div class="chat-list-avatar">
+                                        ${userData.photoURL ? `<img src="${userData.photoURL}" alt="Avatar">` : `<span>${initials}</span>`}
+                                    </div>
+                                    <div class="chat-list-details">
+                                        <div class="chat-list-name">
+                                            ${userData.firstName} ${userData.lastName}
+                                            ${userData.role === 'admin' ? '<span class="badge-admin"><i class="fas fa-check-circle"></i> ' + (translations[currentLanguage]?.admin || 'Admin') + '</span>' : ''}
+                                        </div>
+                                        <div class="chat-list-preview">${chatData.lastMessage || ''}</div>
+                                    </div>
+                                    <div class="chat-list-time">${time}</div>
+                                `;
+                                
+                                chatItem.addEventListener('click', () => {
+                                    currentChatWith = otherUserId;
+                                    loadChatMessages(otherUserId);
+                                    updateChatUserInfo(otherUserId);
+                                    document.getElementById('chatSidebar')?.classList.remove('active');
+                                    
+                                    // Mettre à jour la classe active
+                                    document.querySelectorAll('.chat-list-item').forEach(item => {
+                                        item.classList.remove('active');
+                                    });
+                                    chatItem.classList.add('active');
+                                });
+                                
+                                chatList.appendChild(chatItem);
+                            }
+                        }
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Erreur de chargement de la liste des conversations:', error);
+                chatList.innerHTML = '<div class="text-center" style="color: rgba(255, 255, 255, 0.7); padding: 40px;"><p>Erreur de chargement des conversations</p></div>';
+            }
+        }
+        
+        // Fonction pour mettre à jour les informations de l'utilisateur du chat
+        async function updateChatUserInfo(userId) {
+            const userData = await getUserData(userId);
+            if (!userData) return;
+            
+            const currentChatAvatar = document.getElementById('currentChatAvatar');
+            const currentChatInitials = document.getElementById('currentChatInitials');
+            const currentChatUserName = document.getElementById('currentChatUserName');
+            const currentChatUserStatus = document.getElementById('currentChatUserStatus');
+            
+            if (currentChatAvatar && currentChatInitials) {
+                const initials = getInitials(`${userData.firstName} ${userData.lastName}`);
+                currentChatInitials.textContent = initials;
+                
+                if (userData.photoURL) {
+                    currentChatAvatar.innerHTML = `<img src="${userData.photoURL}" alt="Avatar">`;
+                }
+            }
+            
+            if (currentChatUserName) {
+                currentChatUserName.innerHTML = `
+                    ${userData.firstName} ${userData.lastName}
+                    ${userData.role === 'admin' ? '<span class="badge-admin"><i class="fas fa-check-circle"></i> ' + (translations[currentLanguage]?.admin || 'Admin') + '</span>' : ''}
+                `;
+            }
+            
+            if (currentChatUserStatus) {
+                // Pour l'utilisateur, l'admin est toujours en ligne
+                if (!adminUser && userData.role === 'admin') {
+                    currentChatUserStatus.innerHTML = `
+                        <span class="status-indicator status-online"></span>
+                        <span>${translations[currentLanguage]?.online || 'En ligne'}</span>
+                    `;
+                } else {
+                    const status = userData.isOnline ? 'online' : 'offline';
+                    currentChatUserStatus.innerHTML = `
+                        <span class="status-indicator status-${status}"></span>
+                        <span>${translations[currentLanguage]?.[status] || (status === 'online' ? 'En ligne' : 'Hors ligne')}</span>
+                    `;
+                }
+            }
+        }
+        
+        // Fonction pour échapper le HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Fonction pour charger les données admin
+        async function loadAdminData() {
+            // Pour l'instant, charger simplement la page admin
+            // Dans une version complète, on chargerait ici les statistiques, etc.
+        }
+        
+        // Fonction pour afficher tous les utilisateurs
+        async function showAllUsers() {
+            try {
+                const db = window.firebaseDb;
+                const { collection, getDocs } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+                
+                const usersSnapshot = await getDocs(collection(db, 'users'));
+                const usersListContent = document.getElementById('usersListContent');
+                
+                if (!usersListContent) return;
+                
+                usersListContent.innerHTML = '';
+                
+                usersSnapshot.forEach(async (doc) => {
+                    const userData = doc.data();
+                    
+                    // Ne pas afficher l'admin dans la liste
+                    if (userData.role === 'admin') return;
+                    
+                    const userItem = document.createElement('div');
+                    userItem.className = 'user-item';
+                    
+                    const initials = getInitials(`${userData.firstName} ${userData.lastName}`);
+                    
+                    userItem.innerHTML = `
+                        <div class="user-info">
+                            <div class="chat-list-avatar">
+                                ${userData.photoURL ? `<img src="${userData.photoURL}" alt="Avatar">` : `<span>${initials}</span>`}
+                            </div>
+                            <div>
+                                <div style="color: white; font-weight: 500;">${userData.firstName} ${userData.lastName}</div>
+                                <div style="color: rgba(255, 255, 255, 0.7); font-size: 14px;">${userData.country} • ${userData.email}</div>
+                            </div>
+                        </div>
+                        <div class="user-actions">
+                            <button class="btn btn-outline btn-small view-user-profile-btn" data-user-id="${doc.id}" data-i18n="viewProfile">Voir profil</button>
+                            <button class="btn btn-primary btn-small start-chat-user-btn" data-user-id="${doc.id}" data-i18n="startChat">Démarrer chat</button>
+                        </div>
+                    `;
+                    
+                    usersListContent.appendChild(userItem);
+                });
+                
+                // Ajouter les écouteurs d'événements après le rendu
+                setTimeout(() => {
+                    document.querySelectorAll('.view-user-profile-btn').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            const userId = e.target.dataset.userId;
+                            viewUserProfile(userId);
+                        });
+                    });
+                    
+                    document.querySelectorAll('.start-chat-user-btn').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            const userId = e.target.dataset.userId;
+                            startChatWithUser(userId);
+                        });
+                    });
+                }, 100);
+                
+                // Afficher la modal
+                document.getElementById('usersModal')?.classList.remove('d-none');
+                
+            } catch (error) {
+                console.error('Erreur de chargement des utilisateurs:', error);
+                showAlert('Erreur de chargement des utilisateurs', 'danger');
+            }
+        }
+        
+        // Fonction pour démarrer un chat avec un utilisateur (admin)
+        async function startChatWithUser(userId) {
+            if (!currentUser || !adminUser) return;
+            
+            currentChatWith = userId;
+            
+            // Aller à la page de chat
+            showPage('chat');
+            loadChatMessages(userId);
+            loadChatList();
+            
+            // Mettre à jour les infos du chat
+            updateChatUserInfo(userId);
+            
+            // Fermer la modal
+            document.getElementById('usersModal')?.classList.add('d-none');
+        }
+        
+        // Fonction pour afficher le profil d'un utilisateur
+        async function viewUserProfile(userId) {
+            try {
+                const userData = await getUserData(userId);
+                if (!userData) return;
+                
+                const profileViewContent = document.getElementById('profileViewContent');
+                if (!profileViewContent) return;
+                
+                const initials = getInitials(`${userData.firstName} ${userData.lastName}`);
+                const registrationDate = userData.createdAt ? userData.createdAt.toDate().toLocaleDateString(currentLanguage) : 'Non disponible';
+                const lastSeen = userData.lastSeen ? userData.lastSeen.toDate().toLocaleString(currentLanguage) : 'Non disponible';
+                
+                profileViewContent.innerHTML = `
+                    <div class="profile-header">
+                        <div class="profile-avatar">
+                            ${userData.photoURL ? `<img src="${userData.photoURL}" alt="Avatar">` : `<span>${initials}</span>`}
+                        </div>
+                        <div>
+                            <div class="profile-name">${userData.firstName} ${userData.lastName}</div>
+                            <div class="profile-role">${translations[currentLanguage]?.user || 'Utilisateur'}</div>
+                        </div>
+                    </div>
+                    <div class="profile-details">
+                        <div class="profile-detail-item">
+                            <div class="profile-detail-label">${translations[currentLanguage]?.email || 'Email'}</div>
+                            <div class="profile-detail-value">${userData.email}</div>
+                        </div>
+                        <div class="profile-detail-item">
+                            <div class="profile-detail-label">${translations[currentLanguage]?.country || 'Pays'}</div>
+                            <div class="profile-detail-value">${userData.country}</div>
+                        </div>
+                        <div class="profile-detail-item">
+                            <div class="profile-detail-label">${translations[currentLanguage]?.profileLanguage || 'Langue'}</div>
+                            <div class="profile-detail-value">${userData.language || currentLanguage}</div>
+                        </div>
+                        <div class="profile-detail-item">
+                            <div class="profile-detail-label">${translations[currentLanguage]?.registrationDate || 'Date d\'inscription'}</div>
+                            <div class="profile-detail-value">${registrationDate}</div>
+                        </div>
+                        <div class="profile-detail-item">
+                            <div class="profile-detail-label">${translations[currentLanguage]?.lastSeen || 'Dernière connexion'}</div>
+                            <div class="profile-detail-value">${lastSeen}</div>
+                        </div>
+                        <div class="profile-detail-item">
+                            <div class="profile-detail-label">${translations[currentLanguage]?.role || 'Rôle'}</div>
+                            <div class="profile-detail-value">${userData.role || 'user'}</div>
+                        </div>
+                    </div>
+                `;
+                
+                // Afficher la modal
+                document.getElementById('profileModal')?.classList.remove('d-none');
+                
+            } catch (error) {
+                console.error('Erreur de chargement du profil:', error);
+                showAlert('Erreur de chargement du profil', 'danger');
+            }
+        }
+        
+        // Fonction pour afficher le profil de l'utilisateur actuel du chat
+        async function viewCurrentChatProfile() {
+            if (!currentChatWith) return;
+            await viewUserProfile(currentChatWith);
+        }
+        
+        // Fonction pour gérer la sélection d'image pour les annonces
+        function handlePostImageSelect(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            if (!file.type.startsWith('image/')) {
+                showAlert('Veuillez sélectionner une image valide', 'danger');
+                return;
+            }
+            
+            // Afficher l'aperçu
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const postPreview = document.getElementById('postPreview');
+                const postPreviewImage = document.getElementById('postPreviewImage');
+                
+                if (postPreview && postPreviewImage) {
+                    postPreviewImage.src = event.target.result;
+                    postPreview.classList.remove('d-none');
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        // Fonction pour supprimer l'image de l'annonce
+        function removePostImage() {
+            const postPreview = document.getElementById('postPreview');
+            const postImageInput = document.getElementById('postImageInput');
+            
+            if (postPreview) {
+                postPreview.classList.add('d-none');
+            }
+            
+            if (postImageInput) {
+                postImageInput.value = '';
+            }
+        }
+        
+        // Fonction pour publier une annonce
+        async function publishPost() {
+            const postImageInput = document.getElementById('postImageInput');
+            if (!postImageInput || !postImageInput.files[0]) {
+                showAlert('Veuillez sélectionner une image', 'danger');
+                return;
+            }
+            
+            try {
+                // Dans une implémentation réelle, on utiliserait Cloudinary pour l'upload
+                // Pour cette démo, nous allons simuler l'upload
+                
+                showAlert('Publication en cours...', 'info');
+                
+                // Simuler un délai d'upload
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+                // Dans une vraie implémentation, on uploaderait sur Cloudinary
+                // const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${window.cloudinaryConfig.cloudName}/upload`;
+                // const formData = new FormData();
+                // formData.append('file', postImageInput.files[0]);
+                // formData.append('upload_preset', window.cloudinaryConfig.uploadPreset);
+                
+                // const response = await fetch(cloudinaryUrl, {
+                //     method: 'POST',
+                //     body: formData
+                // });
+                
+                // const data = await response.json();
+                // const imageUrl = data.secure_url;
+                
+                // Pour la démo, utiliser une image placeholder
+                const imageUrl = 'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80';
+                
+                // Enregistrer l'annonce dans Firestore
+                const db = window.firebaseDb;
+                const { collection, addDoc, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+                
+                await addDoc(collection(db, 'posts'), {
+                    imageUrl: imageUrl,
+                    createdAt: serverTimestamp(),
+                    createdBy: currentUser.uid
+                });
+                
+                // Réinitialiser le formulaire
+                removePostImage();
+                document.getElementById('createPostModal')?.classList.add('d-none');
+                
+                showAlert('Annonce publiée avec succès', 'success');
+                
+            } catch (error) {
+                console.error('Erreur de publication:', error);
+                showAlert('Erreur de publication de l\'annonce', 'danger');
+            }
+        }
+        
+        // Fonction pour charger les conversations admin
+        async function loadAdminChats() {
+            // Pour l'admin, charger la liste des conversations
+            loadChatList();
+            
+            // Par défaut, ne pas charger de messages jusqu'à ce qu'une conversation soit sélectionnée
+            const chatMessages = document.getElementById('chatMessages');
+            if (chatMessages) {
+                chatMessages.innerHTML = '<div class="text-center" style="color: rgba(255, 255, 255, 0.7); margin-top: 40px;"><p>Sélectionnez une conversation pour commencer à discuter</p></div>';
+            }
+            
+            // Cacher le bouton "Voir le profil" si on n'a pas encore sélectionné de conversation
+            document.getElementById('viewProfileBtn')?.classList.add('d-none');
+        }
+        
+        // Exposer certaines fonctions globalement pour le débogage
+        window.app = {
+            currentUser,
+            currentLanguage,
+            showPage,
+            logout
+        };
+    </script>
+</body>
+</html>
